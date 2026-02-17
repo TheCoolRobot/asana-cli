@@ -17,6 +17,8 @@ A feature-rich command-line interface for Asana with an interactive TUI (Text Us
 
 ### Installation
 
+#### Without brew
+
 ```bash
 # Clone the repo
 git clone https://github.com/TheCoolRobot/asana-cli.git
@@ -38,6 +40,13 @@ function asana-cli(){
 # Replace /Users/henry/Developer/cmdln_dev with the PATH to YOUR folder
 ```
 
+#### With brew
+
+```bash
+brew install thecoolrobot/asana-cli/asana-cli
+```
+Simple!
+
 ### Authentication
 
 Set your Asana API token:
@@ -52,22 +61,34 @@ asana-cli config set --token your-token-here
 
 ```bash
 # List tasks in a project (interactive TUI)
-asana-cli list <project-id>
+asana-cli list <project-gid>
+
+# Or, if project is added
+asana-cli list
 
 # List tasks as JSON
-asana-cli list <project-id> --json
+asana-cli list <project-gid> --json
+
+# If project is added
+asana-cli list --json
+# You get the idea-it works for all of them with a project GID
 
 # Create a task
-asana-cli create <project-id> --name "My Task" --priority high
+asana-cli create <project-gid> --name "My Task" --priority high
 
+# Add a project 
+asana-cli config project add <project-name> <project-gid> --description <optional description>
+
+# Switch to a different project
+asana-cli config project switch <project-name>
 # Update a task
-asana-cli update <task-id> --name "Updated Task"
+asana-cli update <task-gid> --name "Updated Task"
 
 # Complete a task
-asana-cli complete <task-id>
+asana-cli complete <task-gid>
 
 # Search for tasks
-asana-cli search <workspace-id> "bug fix"
+asana-cli search <workspace-gid> "bug fix"
 
 # Start sync daemon
 asana-cli sync --projects 12345,67890
