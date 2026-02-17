@@ -29,6 +29,15 @@ make build
 go install
 ```
 
+I like to add a function to make accessing it as easy as possible. To do this, I use a zshrc
+
+```bash
+function asana-cli(){
+  cd /Users/henry/Developer/cmdln_dev/asana_cli-copilot&&./asana-cli "$@"
+}
+# Replace /Users/henry/Developer/cmdln_dev with the PATH to YOUR folder
+```
+
 ### Authentication
 
 Set your Asana API token:
