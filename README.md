@@ -29,7 +29,7 @@ make build
 go install
 ```
 
-I like to add a function to make accessing it as easy as possible. To do this, I use a zshrc
+I like to add a function to make accessing it as easy as possible. To do this, I use my zshrc:
 
 ```bash
 function asana-cli(){
