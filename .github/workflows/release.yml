@@ -92,7 +92,15 @@ jobs:
             end
             
             def install
-              bin.install "asana-cli-#{os}-#{arch}" => "asana-cli"
+              if OS.mac?
+                if Hardware::CPU.intel?
+                  bin.install "asana-cli-darwin-amd64" => "asana-cli"
+                elsif Hardware::CPU.arm?
+                  bin.install "asana-cli-darwin-arm64" => "asana-cli"
+                end
+              elsif OS.linux?
+                bin.install "asana-cli-linux-amd64" => "asana-cli"
+              end
             end
             
             def post_install
