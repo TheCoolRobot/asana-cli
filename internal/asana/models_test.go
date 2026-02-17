@@ -17,7 +17,7 @@ func TestCustomTimeUnmarshalJSON(t *testing.T) {
 			name:    "null",
 			json:    `null`,
 			wantErr: false,
-			checkFn: func(ct *CustomTime) bool { return ct == nil },
+			checkFn: func(ct *CustomTime) bool { return ct.IsZero() },
 		},
 		{
 			name:    "date only",
@@ -65,5 +65,22 @@ func TestCustomTimeIsZero(t *testing.T) {
 	ct.Time = time.Now()
 	if ct.IsZero() {
 		t.Error("CustomTime with time should not be zero")
+	}
+}
+
+func TestTaskStructure(t *testing.T) {
+	// Just verify the struct can be created
+	task := &Task{
+		GID:       "test-gid",
+		Name:      "Test Task",
+		Completed: false,
+	}
+
+	if task.GID != "test-gid" {
+		t.Error("Task GID not set correctly")
+	}
+
+	if task.Name != "Test Task" {
+		t.Error("Task Name not set correctly")
 	}
 }

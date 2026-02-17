@@ -1,7 +1,6 @@
 package config
 
 import (
-	"os"
 	"testing"
 )
 
@@ -98,7 +97,7 @@ func TestSetCurrentProjectNotFound(t *testing.T) {
 
 func TestRemoveProject(t *testing.T) {
 	cfg := &Config{
-		Projects:      make(map[string]ProjectConfig),
+		Projects:       make(map[string]ProjectConfig),
 		CurrentProject: "proj1",
 	}
 
