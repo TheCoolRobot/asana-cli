@@ -81,6 +81,7 @@ asana-cli config project add <project-name> <project-gid> --description <optiona
 
 # Switch to a different project
 asana-cli config project switch <project-name>
+
 # Update a task
 asana-cli update <task-gid> --name "Updated Task"
 
