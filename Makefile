@@ -1,4 +1,13 @@
-.PHONY: help build run test lint fmt clean install
+.PHONY: help build run test lint fmt clean install deps release
+
+VERSION ?= $(shell git describe --tags --always --dirty)
+COMMIT := $(shell git rev-parse --short HEAD)
+BUILD_DATE := $(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
+
+LDFLAGS := -ldflags "\
+	-X main.Version=$(VERSION) \
+	-X main.Commit=$(COMMIT) \
+	-X main.Date=$(BUILD_DATE)"
 
 help:
 	@echo "asana-cli - Asana CLI with TUI and sync daemon"
@@ -12,15 +21,16 @@ help:
 	@echo "  fmt         - Format code"
 	@echo "  clean       - Clean build artifacts"
 	@echo "  deps        - Download dependencies"
+	@echo "  release     - Build release binaries for all platforms"
 
 build:
-	go build -o asana-cli main.go
+	go build $(LDFLAGS) -o asana-cli main.go
 
 install:
-	go install
+	go install $(LDFLAGS)
 
 run:
-	go run main.go
+	go run $(LDFLAGS) main.go
 
 test:
 	go test -v ./...
@@ -41,3 +51,15 @@ deps:
 
 dev-setup:
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+
+# Build release binaries for all platforms
+release: clean
+	@echo "Building release binaries for version $(VERSION)"
+	@mkdir -p dist
+	GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -o dist/asana-cli-linux-amd64 main.go
+	GOOS=linux GOARCH=arm64 go build $(LDFLAGS) -o dist/asana-cli-linux-arm64 main.go
+	GOOS=darwin GOARCH=amd64 go build $(LDFLAGS) -o dist/asana-cli-darwin-amd64 main.go
+	GOOS=darwin GOARCH=arm64 go build $(LDFLAGS) -o dist/asana-cli-darwin-arm64 main.go
+	GOOS=windows GOARCH=amd64 go build $(LDFLAGS) -o dist/asana-cli-windows-amd64.exe main.go
+	@echo "Binaries built in dist/"
+	@ls -lh dist/

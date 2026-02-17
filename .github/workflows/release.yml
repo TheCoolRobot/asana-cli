@@ -5,8 +5,11 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  contents: write
+
 jobs:
-  release:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -17,27 +20,87 @@ jobs:
           go-version: '1.22'
       
       - name: Build binaries
+        run: make release
+      
+      - name: Calculate checksums
         run: |
-          GOOS=linux GOARCH=amd64 go build -o asana-cli-linux-amd64 main.go
-          GOOS=darwin GOARCH=amd64 go build -o asana-cli-darwin-amd64 main.go
-          GOOS=windows GOARCH=amd64 go build -o asana-cli-windows-amd64.exe main.go
+          cd dist
+          sha256sum asana-cli-darwin-amd64 > checksums.txt
+          sha256sum asana-cli-darwin-arm64 >> checksums.txt
+          sha256sum asana-cli-linux-amd64 >> checksums.txt
+          sha256sum asana-cli-linux-arm64 >> checksums.txt
+          sha256sum asana-cli-windows-amd64.exe >> checksums.txt
+          cat checksums.txt
       
       - name: Create Release
-        uses: actions/create-release@v1
+        uses: softprops/action-gh-release@v1
+        with:
+          files: dist/*
+          body_path: CHANGELOG.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-          draft: false
-          prerelease: false
       
-      - name: Upload Linux
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Update Homebrew tap
+        uses: actions/checkout@v3
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./asana-cli-linux-amd64
-          asset_name: asana-cli-linux-amd64
-          asset_content_type: application/octet-stream
+          repository: TheCoolRobot/homebrew-asana-cli
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: homebrew-tap
+      
+      - name: Generate Homebrew formula
+        run: |
+          TAG=${GITHUB_REF#refs/tags/}
+          echo "Tag: $TAG"
+          
+          # Calculate SHA256 for macOS Intel
+          MACOS_INTEL_SHA=$(sha256sum dist/asana-cli-darwin-amd64 | cut -d' ' -f1)
+          # Calculate SHA256 for macOS Apple Silicon
+          MACOS_ARM_SHA=$(sha256sum dist/asana-cli-darwin-arm64 | cut -d' ' -f1)
+          # Calculate SHA256 for Linux
+          LINUX_SHA=$(sha256sum dist/asana-cli-linux-amd64 | cut -d' ' -f1)
+          
+          # Create Homebrew formula
+          cat > homebrew-tap/Formula/asana-cli.rb << 'EOF'
+          class AsanaCli < Formula
+            desc "Beautiful Asana CLI with TUI and sync daemon"
+            homepage "https://github.com/TheCoolRobot/asana-cli"
+            license "MIT"
+            
+            on_macos do
+              on_intel do
+                url "https://github.com/TheCoolRobot/asana-cli/releases/download/$TAG/asana-cli-darwin-amd64"
+                sha256 "$MACOS_INTEL_SHA"
+              end
+              on_arm do
+                url "https://github.com/TheCoolRobot/asana-cli/releases/download/$TAG/asana-cli-darwin-arm64"
+                sha256 "$MACOS_ARM_SHA"
+              end
+            end
+            
+            on_linux do
+              url "https://github.com/TheCoolRobot/asana-cli/releases/download/$TAG/asana-cli-linux-amd64"
+              sha256 "$LINUX_SHA"
+            end
+            
+            def install
+              bin.install "asana-cli-#{os}-#{arch}" => "asana-cli"
+            end
+            
+            def post_install
+              puts "✓ Asana CLI installed successfully!"
+              puts "Get started: asana-cli config set --token YOUR_TOKEN"
+            end
+            
+            test do
+              system "#{bin}/asana-cli", "--version"
+            end
+          end
+          EOF
+          
+          # Commit and push
+          cd homebrew-tap
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git add Formula/asana-cli.rb
+          git commit -m "Update asana-cli to $TAG"
+          git push
