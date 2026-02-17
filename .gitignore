@@ -1,0 +1,34 @@
+# Binaries
+asana-cli
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Cache and config
+.asana-cache/
+.asana-cli/
+
+# Environment
+.env
+.env.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*.swn
+*.bak
+*.tmp
+
+# OS
+.DS_Store
+.Thumbs.db
+
+# Build
+dist/
+bin/
+
+# Logs
+*.log

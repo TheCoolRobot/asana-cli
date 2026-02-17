@@ -1,0 +1,43 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.22'
+      
+      - name: Build binaries
+        run: |
+          GOOS=linux GOARCH=amd64 go build -o asana-cli-linux-amd64 main.go
+          GOOS=darwin GOARCH=amd64 go build -o asana-cli-darwin-amd64 main.go
+          GOOS=windows GOARCH=amd64 go build -o asana-cli-windows-amd64.exe main.go
+      
+      - name: Create Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: false
+          prerelease: false
+      
+      - name: Upload Linux
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./asana-cli-linux-amd64
+          asset_name: asana-cli-linux-amd64
+          asset_content_type: application/octet-stream
