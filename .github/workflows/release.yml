@@ -30,17 +30,18 @@ jobs:
           sha256sum asana-cli-linux-amd64 >> checksums.txt
           sha256sum asana-cli-linux-arm64 >> checksums.txt
           sha256sum asana-cli-windows-amd64.exe >> checksums.txt
+          echo "=== Checksums calculated ==="
           cat checksums.txt
       
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           files: dist/*
-          body_path: CHANGELOG.md
+          body: "Release ${{ github.ref_name }}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
-      - name: Update Homebrew tap
+      - name: Checkout Homebrew tap repo
         uses: actions/checkout@v3
         with:
           repository: TheCoolRobot/homebrew-asana-cli
@@ -48,38 +49,46 @@ jobs:
           path: homebrew-tap
       
       - name: Generate Homebrew formula
+        env:
+          TAG: ${{ github.ref_name }}
         run: |
-          TAG=${GITHUB_REF#refs/tags/}
-          echo "Tag: $TAG"
+          set -e
           
-          # Calculate SHA256 for macOS Intel
-          MACOS_INTEL_SHA=$(sha256sum dist/asana-cli-darwin-amd64 | cut -d' ' -f1)
-          # Calculate SHA256 for macOS Apple Silicon
-          MACOS_ARM_SHA=$(sha256sum dist/asana-cli-darwin-arm64 | cut -d' ' -f1)
-          # Calculate SHA256 for Linux
-          LINUX_SHA=$(sha256sum dist/asana-cli-linux-amd64 | cut -d' ' -f1)
+          echo "Starting Homebrew formula generation for tag: $TAG"
           
-          # Create Homebrew formula
-          cat > homebrew-tap/Formula/asana-cli.rb << 'EOF'
+          # Get checksums
+          MACOS_INTEL_SHA=$(sha256sum dist/asana-cli-darwin-amd64 | awk '{print $1}')
+          MACOS_ARM_SHA=$(sha256sum dist/asana-cli-darwin-arm64 | awk '{print $1}')
+          LINUX_SHA=$(sha256sum dist/asana-cli-linux-amd64 | awk '{print $1}')
+          
+          echo "macOS Intel SHA: $MACOS_INTEL_SHA"
+          echo "macOS ARM SHA: $MACOS_ARM_SHA"
+          echo "Linux SHA: $LINUX_SHA"
+          
+          # Create formula file
+          mkdir -p homebrew-tap/Formula
+          
+          cat > homebrew-tap/Formula/asana-cli.rb << 'FORMULA'
           class AsanaCli < Formula
             desc "Beautiful Asana CLI with TUI and sync daemon"
             homepage "https://github.com/TheCoolRobot/asana-cli"
             license "MIT"
+            version "TAG_PLACEHOLDER"
             
             on_macos do
               on_intel do
-                url "https://github.com/TheCoolRobot/asana-cli/releases/download/$TAG/asana-cli-darwin-amd64"
-                sha256 "$MACOS_INTEL_SHA"
+                url "https://github.com/TheCoolRobot/asana-cli/releases/download/TAG_PLACEHOLDER/asana-cli-darwin-amd64"
+                sha256 "MACOS_INTEL_SHA_PLACEHOLDER"
               end
               on_arm do
-                url "https://github.com/TheCoolRobot/asana-cli/releases/download/$TAG/asana-cli-darwin-arm64"
-                sha256 "$MACOS_ARM_SHA"
+                url "https://github.com/TheCoolRobot/asana-cli/releases/download/TAG_PLACEHOLDER/asana-cli-darwin-arm64"
+                sha256 "MACOS_ARM_SHA_PLACEHOLDER"
               end
             end
             
             on_linux do
-              url "https://github.com/TheCoolRobot/asana-cli/releases/download/$TAG/asana-cli-linux-amd64"
-              sha256 "$LINUX_SHA"
+              url "https://github.com/TheCoolRobot/asana-cli/releases/download/TAG_PLACEHOLDER/asana-cli-linux-amd64"
+              sha256 "LINUX_SHA_PLACEHOLDER"
             end
             
             def install
@@ -95,12 +104,36 @@ jobs:
               system "#{bin}/asana-cli", "--version"
             end
           end
-          EOF
+          FORMULA
           
-          # Commit and push
-          cd homebrew-tap
+          # Replace placeholders
+          sed -i "s|TAG_PLACEHOLDER|$TAG|g" homebrew-tap/Formula/asana-cli.rb
+          sed -i "s|MACOS_INTEL_SHA_PLACEHOLDER|$MACOS_INTEL_SHA|g" homebrew-tap/Formula/asana-cli.rb
+          sed -i "s|MACOS_ARM_SHA_PLACEHOLDER|$MACOS_ARM_SHA|g" homebrew-tap/Formula/asana-cli.rb
+          sed -i "s|LINUX_SHA_PLACEHOLDER|$LINUX_SHA|g" homebrew-tap/Formula/asana-cli.rb
+          
+          echo "=== Generated Formula ==="
+          cat homebrew-tap/Formula/asana-cli.rb
+      
+      - name: Commit and push to Homebrew tap
+        working-directory: homebrew-tap
+        run: |
+          set -e
+          
+          echo "Configuring git..."
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git config user.name "github-actions[bot]"
+          
+          echo "Adding formula..."
           git add Formula/asana-cli.rb
-          git commit -m "Update asana-cli to $TAG"
-          git push
+          
+          echo "Checking git status..."
+          git status
+          
+          echo "Committing changes..."
+          git commit -m "Update asana-cli to ${{ github.ref_name }}" || echo "No changes to commit"
+          
+          echo "Pushing to tap repository..."
+          git push origin main
+          
+          echo "✓ Successfully updated Homebrew tap"
