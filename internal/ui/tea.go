@@ -16,6 +16,17 @@ type TaskListItem struct {
 	Selected bool
 }
 
+// addFormField represents which field is focused in the add form
+type addFormField int
+
+const (
+	addFieldName addFormField = iota
+	addFieldDescription
+	addFieldDueDate
+	addFieldPriority
+	addFieldCount
+)
+
 type Model struct {
 	items           []TaskListItem
 	cursor          int
@@ -26,7 +37,7 @@ type Model struct {
 	height          int
 	loading         bool
 	message         string
-	mode            string // "tasks", "projects", or "confirm"
+	mode            string // "tasks", "projects", "confirm", or "add"
 	projects        []config.ProjectConfig
 	projectCursor   int
 	currentProject  string
@@ -35,6 +46,10 @@ type Model struct {
 	confirmAction   string // "delete", "complete"
 	confirmTaskGID  string
 	confirmTaskName string
+
+	// Add form state
+	addFields      [addFieldCount]string
+	addFocusField  addFormField
 }
 
 func NewModel(tasks []*asana.Task, client *asana.Client, projectGID string) Model {
@@ -74,6 +89,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.updateConfirmMode(msg)
 		} else if m.mode == "projects" {
 			return m.updateProjectMode(msg)
+		} else if m.mode == "add" {
+			return m.updateAddMode(msg)
 		}
 		return m.updateTaskMode(msg)
 	}
@@ -115,6 +132,13 @@ func (m Model) updateTaskMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.confirmTaskName = m.items[m.cursor].Task.Name
 			m.mode = "confirm"
 		}
+
+	case "a":
+		// Enter add mode, reset form fields
+		m.addFields = [addFieldCount]string{}
+		m.addFocusField = addFieldName
+		m.mode = "add"
+		m.message = ""
 
 	case "f":
 		m.filterCompleted = !m.filterCompleted
@@ -228,6 +252,76 @@ func (m Model) updateProjectMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m Model) updateAddMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "esc":
+		m.mode = "tasks"
+		m.message = "Cancelled"
+		return m, nil
+
+	case "tab", "down":
+		m.addFocusField = (m.addFocusField + 1) % addFieldCount
+		return m, nil
+
+	case "shift+tab", "up":
+		m.addFocusField = (m.addFocusField - 1 + addFieldCount) % addFieldCount
+		return m, nil
+
+	case "enter":
+		// Submit the form if name is filled in
+		if strings.TrimSpace(m.addFields[addFieldName]) == "" {
+			m.message = "❌ Task name is required"
+			return m, nil
+		}
+
+		if m.projectGID == "" {
+			m.message = "❌ No project selected — cannot create task"
+			return m, nil
+		}
+
+		m.loading = true
+		req := &asana.TaskCreateRequest{
+			Name:        strings.TrimSpace(m.addFields[addFieldName]),
+			Description: strings.TrimSpace(m.addFields[addFieldDescription]),
+			Projects:    []string{m.projectGID},
+			DueOn:       strings.TrimSpace(m.addFields[addFieldDueDate]),
+			Priority:    strings.TrimSpace(m.addFields[addFieldPriority]),
+		}
+
+		task, err := m.client.CreateTask(req)
+		m.loading = false
+
+		if err != nil {
+			m.message = fmt.Sprintf("❌ Error creating task: %v", err)
+			return m, nil
+		}
+
+		// Prepend new task to the list
+		newItem := TaskListItem{Task: task, Selected: false}
+		m.items = append([]TaskListItem{newItem}, m.items...)
+		m.cursor = 0
+		m.mode = "tasks"
+		m.message = fmt.Sprintf("✓ Created: %s", task.Name)
+		return m, nil
+
+	case "backspace":
+		field := &m.addFields[m.addFocusField]
+		if len(*field) > 0 {
+			*field = (*field)[:len(*field)-1]
+		}
+		return m, nil
+
+	default:
+		// Only accept printable characters (single rune keys)
+		key := msg.String()
+		if len(key) == 1 {
+			m.addFields[m.addFocusField] += key
+		}
+	}
+
+	return m, nil
+}
+
 func (m Model) toggleSort() {
 	switch m.sortBy {
 	case "name":
@@ -247,6 +341,8 @@ func (m Model) View() string {
 		return m.viewConfirmation()
 	} else if m.mode == "projects" {
 		return m.viewProjects()
+	} else if m.mode == "add" {
+		return m.viewAddForm()
 	}
 	return m.viewTasks()
 }
@@ -271,9 +367,79 @@ func (m Model) viewConfirmation() string {
 	return sb.String()
 }
 
+func (m Model) viewAddForm() string {
+	var sb strings.Builder
+
+	sb.WriteString(StyleTitle.Render("➕ New Task") + "\n\n")
+
+	type formRow struct {
+		label string
+		field addFormField
+		hint  string
+	}
+
+	rows := []formRow{
+		{"Name*", addFieldName, "required"},
+		{"Description", addFieldDescription, "optional"},
+		{"Due Date", addFieldDueDate, "YYYY-MM-DD, optional"},
+		{"Priority", addFieldPriority, "high / medium / low, optional"},
+	}
+
+	for _, row := range rows {
+		focused := m.addFocusField == row.field
+		value := m.addFields[row.field]
+
+		labelStyle := StyleDim
+		inputStyle := lipgloss.NewStyle().
+			Border(lipgloss.NormalBorder()).
+			BorderForeground(lipgloss.Color("59")).
+			Padding(0, 1).
+			Width(40)
+
+		if focused {
+			labelStyle = StyleSuccess
+			inputStyle = inputStyle.
+				BorderForeground(ColorPrimary)
+		}
+
+		displayValue := value
+		if focused {
+			displayValue = value + "█" // cursor
+		} else if value == "" {
+			displayValue = StyleDim.Render(row.hint)
+		}
+
+		sb.WriteString(labelStyle.Render(fmt.Sprintf("%-12s", row.label)))
+		sb.WriteString(inputStyle.Render(displayValue))
+		sb.WriteString("\n\n")
+	}
+
+	sb.WriteString(StyleDim.Render(strings.Repeat("─", m.width)) + "\n")
+
+	if m.loading {
+		sb.WriteString(StyleWarning.Render("Creating task...") + "\n")
+	} else {
+		sb.WriteString(StyleDim.Render("[tab/↑↓] move between fields  [enter] create  [esc] cancel") + "\n")
+	}
+
+	if m.message != "" {
+		sb.WriteString("\n" + StyleError.Render(m.message) + "\n")
+	}
+
+	return sb.String()
+}
+
 func (m Model) viewTasks() string {
 	if len(m.items) == 0 {
-		return StyleError.Render("No tasks found")
+		var sb strings.Builder
+		sb.WriteString(StyleTitle.Render(fmt.Sprintf("📋 Asana Tasks - %s", m.currentProject)) + "\n\n")
+		sb.WriteString(StyleDim.Render("No tasks found. Press [a] to add one.") + "\n\n")
+		sb.WriteString(StyleDim.Render(strings.Repeat("─", m.width)) + "\n")
+		sb.WriteString(StyleDim.Render("[a] add task  [q] quit") + "\n")
+		if m.message != "" {
+			sb.WriteString("\n" + StyleSuccess.Render(m.message) + "\n")
+		}
+		return sb.String()
 	}
 
 	var sb strings.Builder
@@ -348,9 +514,9 @@ func (m Model) viewTasks() string {
 
 	// Footer
 	sb.WriteString("\n" + StyleDim.Render(strings.Repeat("─", m.width)) + "\n")
-	helpText := "[↑↓] navigate  [space] select  [c] complete  [d] delete  [f] filter  [s] sort  [p] projects  [?] help  [q] quit"
+	helpText := "[↑↓] navigate  [space] select  [a] add  [c] complete  [d] delete  [f] filter  [s] sort  [p] projects  [q] quit"
 	if m.width < len(helpText) {
-		helpText = "[↑↓] nav  [c] done  [d] del  [p] proj  [q] quit"
+		helpText = "[↑↓] nav  [a] add  [c] done  [d] del  [p] proj  [q] quit"
 	}
 	sb.WriteString(StyleDim.Render(helpText) + "\n")
 
