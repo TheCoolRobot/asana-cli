@@ -45,7 +45,7 @@ var syncCmd = &cobra.Command{
 
 func init() {
 	syncCmd.Flags().StringVar(&projects, "projects", "", "Comma-separated list of project IDs to sync (required)")
-	if err := syncCmd.MarkFlagRequired("projects"); err=nil{
+	if err := syncCmd.MarkFlagRequired("projects"); err != nil{
 		return err
 	}
 }
