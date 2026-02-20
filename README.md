@@ -156,6 +156,7 @@ $ asana-cli create proj-123 --name "Review PR" --json | jq '.data.id'
 [s] - Change sort (name/due/priority)
 [/] - Search
 [q] - Quit
+[a] - Add
 ```
 
 ## 🔐 Security

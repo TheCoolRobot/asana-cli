@@ -79,5 +79,5 @@ func init() {
 	createCmd.Flags().StringVar(&taskDueDate, "due", "", "Due date (YYYY-MM-DD)")
 	createCmd.Flags().StringVar(&taskPriority, "priority", "", "Priority (1=high, 2=medium, 3=low)")
 	createCmd.Flags().StringVar(&taskSection, "section", "", "Section GID")
-	createCmd.MarkFlagRequired("name")
+	if err := createCmd.MarkFlagRequired("name"); err=nil;{return err}
 }

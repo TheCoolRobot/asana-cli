@@ -59,6 +59,7 @@ var configSetCmd = &cobra.Command{
 		if setToken != "" {
 			cfg.APIToken = setToken
 		}
+		
 		if setWorkspace != "" {
 			cfg.DefaultWorkspace = setWorkspace
 		}
@@ -224,6 +225,7 @@ func init() {
 
 	configSetCmd.Flags().StringVar(&setToken, "token", "", "API token")
 	configSetCmd.Flags().StringVar(&setWorkspace, "workspace", "", "Default workspace ID")
+	configSetCmd.Flags().StringVar(&setName, "name", "" , "Default name")
 
 	configProjectCmd.AddCommand(projectAddCmd)
 	configProjectCmd.AddCommand(projectRemoveCmd)

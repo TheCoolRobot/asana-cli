@@ -31,7 +31,7 @@ type Model struct {
 	items           []TaskListItem
 	cursor          int
 	filterCompleted bool
-	searchQuery     string
+	//searchQuery     string
 	sortBy          string // name, due_date, priority
 	width           int
 	height          int
