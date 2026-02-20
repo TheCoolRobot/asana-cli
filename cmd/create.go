@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/spf13/cobra"
 	"github.com/TheCoolRobot/asana-cli/internal/asana"
@@ -79,5 +80,5 @@ func init() {
 	createCmd.Flags().StringVar(&taskDueDate, "due", "", "Due date (YYYY-MM-DD)")
 	createCmd.Flags().StringVar(&taskPriority, "priority", "", "Priority (1=high, 2=medium, 3=low)")
 	createCmd.Flags().StringVar(&taskSection, "section", "", "Section GID")
-	if err := createCmd.MarkFlagRequired("name"); err != nil{return err}
+	if err := createCmd.MarkFlagRequired("name"); err != nil{log.Fatalf(err)}
 }

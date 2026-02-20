@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"os/signal"
 	"strings"
@@ -45,7 +46,5 @@ var syncCmd = &cobra.Command{
 
 func init() {
 	syncCmd.Flags().StringVar(&projects, "projects", "", "Comma-separated list of project IDs to sync (required)")
-	if err := syncCmd.MarkFlagRequired("projects"); err != nil{
-		return err
-	}
+	if err := syncCmd.MarkFlagRequired("projects"); err != nil{log.Fatalf(err)}
 }
