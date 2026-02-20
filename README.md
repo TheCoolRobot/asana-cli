@@ -1,6 +1,6 @@
 # Asana CLI
 
-A feature-rich command-line interface for Asana with an interactive TUI (Text User Interface), JSON output for automation, and a background sync daemon for offline support.
+A feature-rich open-source command-line interface for Asana with an interactive TUI (Text User Interface), JSON output for automation, and a background sync daemon for offline support.
 
 ## ✨ Features
 
