@@ -35,7 +35,7 @@ I like to add a function to make accessing it as easy as possible. To do this, I
 
 ```bash
 function asana-cli(){
-  cd /Users/henry/Developer/cmdln_dev/asana_cli-copilot&&./asana-cli "$@"
+  cd /Users/henry/Developer/cmdln_dev/asana-cli&&./asana-cli "$@"
 }
 # Replace /Users/henry/Developer/cmdln_dev with the PATH to YOUR folder
 ```
